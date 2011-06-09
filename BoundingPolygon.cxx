@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 {
   if(argc < 2)
     {
-    std::cerr << "Required arguments: filename [straightnessErrorTolerance" << std::endl;
+    std::cerr << "Required arguments: filename [straightnessErrorTolerance]" << std::endl;
     return EXIT_FAILURE;
     }
     
