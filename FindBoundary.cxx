@@ -19,23 +19,6 @@
 // This algorithm is based on "Using Aerial Lidar Data to Segment And Model Buildings" by Oliver Wang
 
 // VTK
-#include <vtkActor.h>
-#include <vtkPolyLine.h>
-#include <vtkCellArray.h>
-#include <vtkGraphToPolyData.h>
-#include <vtkInteractorStyleTrackballCamera.h>
-#include <vtkKdTreePointLocator.h>
-#include <vtkLine.h>
-#include <vtkMath.h>
-#include <vtkProperty.h>
-#include <vtkPoints.h>
-#include <vtkPolyData.h>
-#include <vtkPolyDataMapper.h>
-#include <vtkRenderWindowInteractor.h>
-#include <vtkRenderWindow.h>
-#include <vtkRenderer.h>
-#include <vtkSmartPointer.h>
-#include <vtkXMLPolyDataWriter.h>
 
 // ITK
 #include <itkImage.h>
@@ -49,10 +32,6 @@
 // Boost
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 #include <boost/graph/adjacency_list.hpp>
-
-std::vector<unsigned int> RoughOrdering(vtkPolyData* points);
-
-void Visualize(vtkPolyData* graph, vtkPolyData* path);
 
 std::vector<unsigned int> OutlineApproximation(vtkPolyData* points, float straightnessErrorTolerance);
 
