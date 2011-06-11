@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.6)
 
-PROJECT(BoundingPolygon)
+PROJECT(TensorVoting)
 
 #### Libraries ####
 #VTK
@@ -19,11 +19,5 @@ INCLUDE_DIRECTORIES(${INCLUDE_DIRECTORIES} ${Boost_INCLUDE_DIRS})
 LINK_DIRECTORIES(${LINK_DIRECTORIES} ${Boost_LIBRARY_DIRS})
 
 #### Executables ####
-ADD_EXECUTABLE(BoundingPolygon BoundingPolygon.cxx Helpers.cxx)
-TARGET_LINK_LIBRARIES(BoundingPolygon vtkHybrid vtkInfovis ${ITK_LIBRARIES})
-
-ADD_EXECUTABLE(FindBoundary FindBoundary.cxx Helpers.cxx)
-TARGET_LINK_LIBRARIES(FindBoundary vtkHybrid vtkInfovis ${ITK_LIBRARIES})
-
-ADD_EXECUTABLE(ImageToPoints ImageToPoints.cxx Helpers.cxx)
-TARGET_LINK_LIBRARIES(ImageToPoints vtkHybrid vtkInfovis ${ITK_LIBRARIES})
+ADD_EXECUTABLE(TensorVoting TensorVoting.cxx Helpers.cxx)
+TARGET_LINK_LIBRARIES(TensorVoting vtkHybrid vtkInfovis ${ITK_LIBRARIES})
