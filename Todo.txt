@@ -1,2 +1,0 @@
-Need to attach the point IDs to the vertices of the graph. Then go through and remove any of the "if > size/2, subtract size/2" mess.
-After this, finish and test WriteGraph()
