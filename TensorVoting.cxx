@@ -97,12 +97,10 @@ int main(int argc, char*argv[])
   vcl_vector< vnl_vector_fixed<double, 2> > seeds;
   vcl_vector< vnl_vector_fixed<double, 2> > outlocations(size[0]*size[1]);
   vcl_vector< vnl_vector_fixed<double, 2> > outlocations_initial;
-  vnl_vector_fixed<double,2> zero_location(0.0);
+  
   vnl_vector_fixed<double, 2> neighbor;
   
   vcl_vector< vnl_vector_fixed<double, 1> > sals;
-
-  int ctr1 = 0;
 
   vcl_cout << "Noting the input locations " << vcl_endl;
 
@@ -110,49 +108,25 @@ int main(int argc, char*argv[])
 
   for(inputIterator.GoToBegin();!inputIterator.IsAtEnd(); ++inputIterator)
   {
-    double currpix = inputIterator.Get();
-    if(currpix>0)
+    if(inputIterator.Get() != 0) // This is one of the "foreground" points
     {
-      inlocations.push_back(zero_location);
       pixelIndex = inputIterator.GetIndex();
-      inlocations[ctr1][0] = pixelIndex[0];
-      inlocations[ctr1][1] = pixelIndex[1];
-      votee_matrices_initial.push_back(zero_matrix);
-      outlocations_initial.push_back(zero_location);
-      outlocations_initial[ctr1][0] = pixelIndex[0];
-      outlocations_initial[ctr1][1] = pixelIndex[1];
-      votee_matrices_initial[ctr1][0][0] = 1;
-      votee_matrices_initial[ctr1][0][1] = 0;
-      votee_matrices_initial[ctr1][1][0] = 0;
-      votee_matrices_initial[ctr1][1][1] = 1;
-      ctr1 = ctr1+1;
+
+      vnl_vector_fixed<double,2> location;
+      location[0] = pixelIndex[0];
+      location[1] = pixelIndex[1];
+
+      inlocations.push_back(location);
+      outlocations_initial.push_back(location);      
+
+      vnl_matrix_fixed<double, 2,2> voteeMatrix;
+      voteeMatrix[0][0] = 1;
+      voteeMatrix[0][1] = 0;
+      voteeMatrix[1][0] = 0;
+      voteeMatrix[1][1] = 1;
+      votee_matrices_initial.push_back(voteeMatrix);
     }
   }
-
-
-  //while (! myfile.eof() )
-  //{
-  //      for(int i =0; i<2 ; i++)
-  //      {
-  //              myfile>>a[i];
-  //      }
-  //      inlocations.push_back(zero_location);
-  //      inlocations[ctr1][0] = a[0];
-  //      inlocations[ctr1][1] = a[1];
-  //      votee_matrices_initial.push_back(zero_matrix);
-  //      outlocations_initial.push_back(zero_location);
-  //      outlocations_initial[ctr1][0] = a[0];
-  //      outlocations_initial[ctr1][1] = a[1];
-
-  //      votee_matrices_initial[ctr1][0][0] = 1;
-  //      votee_matrices_initial[ctr1][0][1] = 0;
-  //      votee_matrices_initial[ctr1][1][0] = 0;
-  //      votee_matrices_initial[ctr1][1][1] = 1;
-  //      ctr1 = ctr1+1;
-  //}
-  //
-  //myfile.close();
-
 
   vcl_cout << "Finished reading the seeds file" << vcl_endl;
 
@@ -169,7 +143,6 @@ int main(int argc, char*argv[])
       p = p+1;
     }
   }
-
 
   //Initial Ball voting
   vnl_matrix_fixed<double, 2,2> voter_matrix;
@@ -230,11 +203,10 @@ int main(int argc, char*argv[])
   vcl_cout<<"Finished creating Output Image  and Iterators!"<<vcl_endl;
   vcl_cout<<"Performing Dense Voting & Creating the Saliency Map........"<<vcl_endl;
 
-  ctr1=0;
   int ctr=0;
   for(unsigned int counter = 0; counter< inlocations.size() ; counter++)
   {
-    vcl_cout<<counter<<vcl_endl;
+    vcl_cout << counter << vcl_endl;
 
     //Encode the new information into a new tensor which will be used for dense voting.
     rtvl_tensor<2> voter_tensor(votee_matrices_initial[counter]);
@@ -273,7 +245,7 @@ int main(int argc, char*argv[])
       Image->SetPixel( pixelIndex, votee_tensor.saliency(0));
       if(max<votee_tensor.saliency(0))
       {
-        max =   votee_tensor.saliency(0);
+        max = votee_tensor.saliency(0);
       }
     }
   }
