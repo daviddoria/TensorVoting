@@ -60,7 +60,7 @@ int main(int argc, char **argv)
   im_input = Helpers::readImage<OutputMap>(argv[1]);
   OutputMap::SizeType size = im_input->GetLargestPossibleRegion().GetSize();
   OutputMap::IndexType pixelIndex;
-  OutputMap::IndexType maxIndex;
+
   OutputMap::IndexType start;
   OutputMap::RegionType region;
   start[0] = 0; // first index on X
@@ -141,9 +141,9 @@ int main(int argc, char **argv)
 
   long p = 0;
 
-  for(int counter1 = 0; counter1 < size[0]; counter1++)
+  for(unsigned int counter1 = 0; counter1 < size[0]; counter1++)
   {
-    for(int counter2 = 0; counter2 < size[1]; counter2++)
+    for(unsigned int counter2 = 0; counter2 < size[1]; counter2++)
     {
       votee_matrices[p][0][0] = 0;
       votee_matrices[p][0][1] = 0;
@@ -167,13 +167,13 @@ int main(int argc, char **argv)
 
   vcl_cout<<"Ball Voting in progress......."<<vcl_endl;
 
-  for( int counter = 0; counter< inlocations.size() ; counter++)
+  for(unsigned int counter = 0; counter< inlocations.size() ; counter++)
   {
     vcl_cout<<counter<<vcl_endl;
     // Use "rtvl_voter" to encapsulate a token (location + input tensor).
     rtvl_voter<2> voter(inlocations[counter], voter_tensor_initial);
     //Sparse Ball Voting
-    for(int vcounter = 0; vcounter< outlocations_initial.size(); vcounter++)
+    for(unsigned int vcounter = 0; vcounter< outlocations_initial.size(); vcounter++)
     {
       // Use "rtvl_votee" to encapsulate a site (location + output tensor).
       rtvl_votee<2> votee(outlocations_initial[vcounter], votee_matrices_initial[vcounter]);
@@ -185,7 +185,7 @@ int main(int argc, char **argv)
   //During dense voting if the votee happens to be an initial token,
   // its matrix should be an updated value.
 
-  for(int vcounter = 0; vcounter< outlocations_initial.size(); vcounter++)
+  for(unsigned int vcounter = 0; vcounter< outlocations_initial.size(); vcounter++)
   {
     long ctrx = ( outlocations_initial[vcounter][0])*size[1] + (outlocations_initial[vcounter][1]) ;
     votee_matrices[ctrx] = votee_matrices_initial[vcounter];
@@ -219,7 +219,7 @@ int main(int argc, char **argv)
 
   ctr1=0;
   int ctr=0;
-  for( int counter = 0; counter< inlocations.size() ; counter++)
+  for(unsigned int counter = 0; counter< inlocations.size() ; counter++)
   {
     vcl_cout<<counter<<vcl_endl;
 
@@ -238,7 +238,7 @@ int main(int argc, char **argv)
 
     NIt.SetLocation(loc);
     nhood = NIt.GetNeighborhood();
-    for (int i = 0; i<nhood.Size(); ++i)
+    for(unsigned int i = 0; i < nhood.Size(); ++i)
     {
       off_set = nhood.GetOffset(i);
       neighbor[0] = loc[0] + off_set[0];
