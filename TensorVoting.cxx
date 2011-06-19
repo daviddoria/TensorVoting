@@ -74,7 +74,6 @@ int main(int argc, char*argv[])
   typedef itk::ImageRegionConstIterator< OutputMap > ConstIteratorType;
   typedef itk::ImageRegionIterator< OutputMap > OIteratorType;
 
-
   OutputMap::Pointer im_input;
   im_input = Helpers::readImage<OutputMap>(inputFileName);
   OutputMap::SizeType size = im_input->GetLargestPossibleRegion().GetSize();
@@ -100,23 +99,22 @@ int main(int argc, char*argv[])
   vcl_vector< vnl_vector_fixed<double, 2> > outlocations_initial;
   vnl_vector_fixed<double,2> zero_location(0.0);
   vnl_vector_fixed<double, 2> neighbor;
-  vnl_vector_fixed<double,1> zeroloc(0.0);
+  
   vcl_vector< vnl_vector_fixed<double, 1> > sals;
 
-  int ctr1;
-  ctr1=0;
+  int ctr1 = 0;
 
-  vcl_cout<<"Noting the input locations "<<vcl_endl;
+  vcl_cout << "Noting the input locations " << vcl_endl;
 
-  OIteratorType inpIt(im_input,region);
+  OIteratorType inputIterator(im_input,region);
 
-  for(inpIt.GoToBegin();!inpIt.IsAtEnd(); ++inpIt)
+  for(inputIterator.GoToBegin();!inputIterator.IsAtEnd(); ++inputIterator)
   {
-    double currpix = inpIt.Get();
+    double currpix = inputIterator.Get();
     if(currpix>0)
     {
       inlocations.push_back(zero_location);
-      pixelIndex = inpIt.GetIndex();
+      pixelIndex = inputIterator.GetIndex();
       inlocations[ctr1][0] = pixelIndex[0];
       inlocations[ctr1][1] = pixelIndex[1];
       votee_matrices_initial.push_back(zero_matrix);
@@ -156,7 +154,7 @@ int main(int argc, char*argv[])
   //myfile.close();
 
 
-  vcl_cout<<"Finished reading the seeds file "<<vcl_endl;
+  vcl_cout << "Finished reading the seeds file" << vcl_endl;
 
   long p = 0;
 
@@ -183,8 +181,7 @@ int main(int argc, char*argv[])
   rtvl_tensor<2> voter_tensor_initial(voter_matrix);
   rtvl_weight_original<2> tvw(votingFieldParameter);
 
-
-  vcl_cout<<"Ball Voting in progress......."<<vcl_endl;
+  vcl_cout << "Ball Voting in progress......." << vcl_endl;
 
   for(unsigned int counter = 0; counter< inlocations.size() ; counter++)
   {
@@ -210,16 +207,14 @@ int main(int argc, char*argv[])
     votee_matrices[ctrx] = votee_matrices_initial[vcounter];
   }
 
-  vcl_cout<<"Finished Ball Voting !"<<vcl_endl;
-  vcl_cout<<"Creating Output Image and Iterators........"<<vcl_endl;
-
+  vcl_cout << "Finished Ball Voting!" << vcl_endl;
+  vcl_cout << "Creating Output Image and Iterators........" << vcl_endl;
 
   SaliencyMap::Pointer Image = SaliencyMap::New();
   region.SetSize(size);
   region.SetIndex( start );
   Image->SetRegions( region );
   Image->Allocate();
-
 
   itk::NeighborhoodIterator<SaliencyMap>::IndexType loc;
   NeighborhoodIteratorType::RadiusType radius;
@@ -228,7 +223,6 @@ int main(int argc, char*argv[])
   //radius.Fill();
   radius[0] = denseVotingFieldRange;
   radius[1] = denseVotingFieldRange;
-
 
   //"N"eighborhood "It"erators.
   itk::Neighborhood<double, 2> nhood;
@@ -241,7 +235,6 @@ int main(int argc, char*argv[])
   for(unsigned int counter = 0; counter< inlocations.size() ; counter++)
   {
     vcl_cout<<counter<<vcl_endl;
-
 
     //Encode the new information into a new tensor which will be used for dense voting.
     rtvl_tensor<2> voter_tensor(votee_matrices_initial[counter]);
@@ -263,18 +256,13 @@ int main(int argc, char*argv[])
       neighbor[0] = loc[0] + off_set[0];
       neighbor[1] = loc[1] + off_set[1];
 
-
-      if(neighbor[0]<1) continue;
-      if(neighbor[1]<1) continue;
-
-
-      if(neighbor[0]>=size[0]) continue;
-      if(neighbor[1]>=size[1]) continue;
-
+      if(neighbor[0]<1 || neighbor[1]<1 || neighbor[0]>=size[0] || neighbor[1]>=size[1])
+      {
+        continue;
+      }
 
       pixelIndex[0] = neighbor[0];
       pixelIndex[1] = neighbor[1];
-
 
       ctr = ( neighbor[0])*size[1] + (neighbor[1]);
       rtvl_votee<2> votee(neighbor, votee_matrices[ctr]);
@@ -292,10 +280,10 @@ int main(int argc, char*argv[])
 
   IteratorType salIt(Image,region);
 
-  for(inpIt.GoToBegin(),salIt.GoToBegin();!inpIt.IsAtEnd(); ++inpIt,++salIt)
+  for(inputIterator.GoToBegin(),salIt.GoToBegin();!inputIterator.IsAtEnd(); ++inputIterator,++salIt)
   {
     double currpix = salIt.Get();
-    inpIt.Set(floor((currpix/max)*255));
+    inputIterator.Set(floor((currpix/max)*255));
   }
 
   Helpers::writeImage<OutputMap>(im_input, outputFileName);
