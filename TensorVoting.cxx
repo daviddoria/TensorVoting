@@ -61,7 +61,7 @@ int main(int argc, char*argv[])
 
   std::string outputFileName = argv[4];
 
-  //For Saliency Map
+  // For Saliency Map
   typedef double InputPixelType;
   typedef itk::Image<InputPixelType,2> SaliencyMap;
   typedef itk::ImageRegionConstIterator<SaliencyMap> IteratorType;
@@ -80,27 +80,22 @@ int main(int argc, char*argv[])
   OutputMap::IndexType pixelIndex;
 
   OutputMap::IndexType start;
-  OutputMap::RegionType region;
-  start[0] = 0; // first index on X
-  start[1] = 0; // first index on Y
+  start.Fill(0);
 
-  region.SetSize(size);
-  region.SetIndex( start );
+  OutputMap::RegionType region(start,size);
 
   double max = -1;
 
-  //TVL initializations
+  // TVL initializations
   vcl_vector< vnl_matrix_fixed<double, 2,2> > votee_matrices(size[0]*size[1]);
   vcl_vector< vnl_matrix_fixed<double, 2,2> > votee_matrices_initial;
-  vnl_matrix_fixed<double,2,2> zero_matrix;
+
   vcl_vector< vnl_vector_fixed<double, 2> > inlocations;
   vcl_vector< vnl_vector_fixed<double, 2> > seeds;
   vcl_vector< vnl_vector_fixed<double, 2> > outlocations(size[0]*size[1]);
   vcl_vector< vnl_vector_fixed<double, 2> > outlocations_initial;
-  
+
   vnl_vector_fixed<double, 2> neighbor;
-  
-  vcl_vector< vnl_vector_fixed<double, 1> > sals;
 
   vcl_cout << "Noting the input locations " << vcl_endl;
 
@@ -144,7 +139,7 @@ int main(int argc, char*argv[])
     }
   }
 
-  //Initial Ball voting
+  // Initial Ball voting
   vnl_matrix_fixed<double, 2,2> voter_matrix;
   voter_matrix(0,0) = 1;
   voter_matrix(0,1) = 0;
@@ -171,7 +166,7 @@ int main(int argc, char*argv[])
     }
   }
 
-  //During dense voting if the votee happens to be an initial token,
+  // During dense voting if the votee happens to be an initial token,
   // its matrix should be an updated value.
 
   for(unsigned int vcounter = 0; vcounter< outlocations_initial.size(); vcounter++)
@@ -183,25 +178,23 @@ int main(int argc, char*argv[])
   vcl_cout << "Finished Ball Voting!" << vcl_endl;
   vcl_cout << "Creating Output Image and Iterators........" << vcl_endl;
 
-  SaliencyMap::Pointer Image = SaliencyMap::New();
+  SaliencyMap::Pointer saliencyMap = SaliencyMap::New();
   region.SetSize(size);
   region.SetIndex( start );
-  Image->SetRegions( region );
-  Image->Allocate();
+  saliencyMap->SetRegions( region );
+  saliencyMap->Allocate();
 
   itk::NeighborhoodIterator<SaliencyMap>::IndexType loc;
   NeighborhoodIteratorType::RadiusType radius;
 
   vcl_cout<<"Am here !"<<vcl_endl;
-  //radius.Fill();
-  radius[0] = denseVotingFieldRange;
-  radius[1] = denseVotingFieldRange;
+  radius.Fill(denseVotingFieldRange);
 
-  //"N"eighborhood "It"erators.
-  itk::Neighborhood<double, 2> nhood;
-  itk::NeighborhoodIterator<SaliencyMap> NIt(radius, Image, Image->GetRequestedRegion());
-  vcl_cout<<"Finished creating Output Image  and Iterators!"<<vcl_endl;
-  vcl_cout<<"Performing Dense Voting & Creating the Saliency Map........"<<vcl_endl;
+  // Create neighborhood iterators
+  itk::Neighborhood<double, 2> neighborhood;
+  itk::NeighborhoodIterator<SaliencyMap> neighborhoodIterator(radius, saliencyMap, saliencyMap->GetRequestedRegion());
+  vcl_cout << "Finished creating Output Image  and Iterators!" << vcl_endl;
+  vcl_cout << "Performing Dense Voting & Creating the Saliency Map........" << vcl_endl;
 
   int ctr=0;
   for(unsigned int counter = 0; counter< inlocations.size() ; counter++)
@@ -218,15 +211,15 @@ int main(int argc, char*argv[])
     loc[0] = inlocations[counter][0];
     loc[1] = inlocations[counter][1];
 
-    itk::Offset<2> off_set;
+    itk::Offset<2> offset;
 
-    NIt.SetLocation(loc);
-    nhood = NIt.GetNeighborhood();
-    for(unsigned int i = 0; i < nhood.Size(); ++i)
+    neighborhoodIterator.SetLocation(loc);
+    neighborhood = neighborhoodIterator.GetNeighborhood();
+    for(unsigned int i = 0; i < neighborhood.Size(); ++i)
     {
-      off_set = nhood.GetOffset(i);
-      neighbor[0] = loc[0] + off_set[0];
-      neighbor[1] = loc[1] + off_set[1];
+      offset = neighborhood.GetOffset(i);
+      neighbor[0] = loc[0] + offset[0];
+      neighbor[1] = loc[1] + offset[1];
 
       if(neighbor[0]<1 || neighbor[1]<1 || neighbor[0]>=size[0] || neighbor[1]>=size[1])
       {
@@ -242,7 +235,7 @@ int main(int argc, char*argv[])
       // Compute one vote.
       rtvl_vote(voter, votee, tvw);
       rtvl_tensor<2> votee_tensor(votee_matrices[ctr]);
-      Image->SetPixel( pixelIndex, votee_tensor.saliency(0));
+      saliencyMap->SetPixel( pixelIndex, votee_tensor.saliency(0));
       if(max<votee_tensor.saliency(0))
       {
         max = votee_tensor.saliency(0);
@@ -250,12 +243,12 @@ int main(int argc, char*argv[])
     }
   }
 
-  IteratorType salIt(Image,region);
+  IteratorType saliencyIterator(saliencyMap,region);
 
-  for(inputIterator.GoToBegin(),salIt.GoToBegin();!inputIterator.IsAtEnd(); ++inputIterator,++salIt)
+  for(inputIterator.GoToBegin(),saliencyIterator.GoToBegin();!inputIterator.IsAtEnd(); ++inputIterator,++saliencyIterator)
   {
-    double currpix = salIt.Get();
-    inputIterator.Set(floor((currpix/max)*255));
+    double currentPixel = saliencyIterator.Get();
+    inputIterator.Set(floor((currentPixel/max)*255));
   }
 
   Helpers::writeImage<OutputMap>(im_input, outputFileName);
