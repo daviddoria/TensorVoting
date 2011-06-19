@@ -7,28 +7,57 @@
 
 #include <vector>
 
-#include <vtkPolyData.h>
-#include <vtkSmartPointer.h>
-
 namespace Helpers
 {
-//void CreateFullyConnectedGraph(vtkMutableUndirectedGraph* graph, unsigned int numberOfPoints);
 
-std::vector<itk::Index<2> > BinaryImageToPixelList(ImageType::Pointer image);
-void PixelListToPolyData(std::vector<itk::Index<2> > pixelList, vtkSmartPointer<vtkPolyData> polydata);
-unsigned int FindKeyByValue(std::map <unsigned int, unsigned int> myMap, unsigned int value);
-unsigned int CountFalse(std::vector<bool>);
+  template <typename T>
+  typename T::Pointer readImage(const char *filename)
+  {
+    std::cout << "Reading " << filename << std::endl;
+    typedef typename itk::ImageFileReader<T> ReaderType;
+    typename ReaderType::Pointer reader = ReaderType::New();
 
-void WritePoints(vtkPolyData*, std::string filename);
-void WritePathAsPolyLine(std::vector<unsigned int> order, vtkPolyData* graphPolyData, std::string filename);
-void WritePathAsLines(std::vector<unsigned int> order, vtkPolyData* graphPolyData, std::string filename);
+    ReaderType::GlobalWarningDisplayOff();
+    reader->SetFileName(filename);
+    try
+    {
+      reader->Update();
+    }
+    catch(itk::ExceptionObject &err)
+    {
+      std::cout << "ExceptionObject caught!" <<std::endl;
+      std::cout << err << std::endl;
+      //return EXIT_FAILURE;
+    }
+    printf("Done.\n");
+    return reader->GetOutput();
+  }
 
-std::vector<unsigned int> GetShortestPath(Graph& g, Graph::vertex_descriptor start, Graph::vertex_descriptor end);
-float GetShortestPathDistance(Graph& g, Graph::vertex_descriptor start, Graph::vertex_descriptor end);
 
-float GetDistanceBetweenPoints(vtkPolyData*, vtkIdType a, vtkIdType b);
 
-void OutputVector(std::vector<unsigned int> &v);
+
+  template <typename T>
+  int writeImage(typename T::Pointer im, const char* filename)
+  {
+    printf("Writing %s ... ",filename);
+    typedef typename itk::ImageFileWriter<T> WriterType;
+
+    typename WriterType::Pointer writer = WriterType::New();
+    writer->SetFileName(filename);
+    writer->SetInput(im);
+    try
+    {
+      writer->Update();
+    }
+    catch(itk::ExceptionObject &err)
+    {
+      std::cout << "ExceptionObject caught!" <<std::endl;
+      std::cout << err << std::endl;
+      return EXIT_FAILURE;
+    }
+    printf("Done.\n");
+    return EXIT_SUCCESS;
+  }
 
 } // end namespace Helpers
 #endif

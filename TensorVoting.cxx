@@ -7,17 +7,20 @@ http://www.boost.org/LICENSE_1_0.txt) */
 // TensorVoting <input filename> <voting field parameter (5-10) > < dense voting field range (5-10)> < Output file name >
 // The "foreground" pixels in the input image must be white, while the background pixels must be black
 
-#include <itkArray.h>
+// ITK
+#include "itkArray.h"
 #include "itkListSample.h"
 #include "itkVector.h"
 #include "itkKdTreeGenerator.h"
-#include <itkImage.h>
-#include <itkImageFileWriter.h>
+#include "itkImage.h"
+#include "itkImageFileWriter.h"
 #include "itkImageFileReader.h"
 #include "itkNeighborhood.h"
 #include "itkNeighborhoodIterator.h"
 #include "itkDerivativeImageFilter.h"
 #include "itkZeroCrossingImageFilter.h"
+
+// VXL
 #include <rtvl/rtvl_tensor.hxx>
 #include <rtvl/rtvl_vote.hxx>
 #include <rtvl/rtvl_votee.hxx>
@@ -28,310 +31,258 @@ http://www.boost.org/LICENSE_1_0.txt) */
 #include <vcl_vector.h>
 #include <vcl_iostream.h>
 #include <vcl_fstream.h>
-#include <math.h>
 
+// STL
+#include <cmath>
 
-
-template <typename T>
-typename T::Pointer readImage(const char *filename)
-{
-        printf("Reading %s ... ",filename);
-        typedef typename itk::ImageFileReader<T> ReaderType;
-        typename ReaderType::Pointer reader = ReaderType::New();
-
-        ReaderType::GlobalWarningDisplayOff();
-        reader->SetFileName(filename);
-        try
-        {
-                reader->Update();
-        }
-        catch(itk::ExceptionObject &err)
-        {
-                std::cout << "ExceptionObject caught!" <<std::endl;
-                std::cout << err << std::endl;
-                //return EXIT_FAILURE;
-        }
-        printf("Done.\n");
-        return reader->GetOutput();
-}
-
-
-
-
-template <typename T>
-int writeImage(typename T::Pointer im, const char* filename)
-{
-        printf("Writing %s ... ",filename);
-        typedef typename itk::ImageFileWriter<T> WriterType;
-
-        typename WriterType::Pointer writer = WriterType::New();
-        writer->SetFileName(filename);
-        writer->SetInput(im);
-        try
-        {
-                writer->Update();
-        }
-        catch(itk::ExceptionObject &err)
-        {
-                std::cout << "ExceptionObject caught!" <<std::endl;
-                std::cout << err << std::endl;
-                return EXIT_FAILURE;
-        }
-        printf("Done.\n");
-        return EXIT_SUCCESS;
-}
+// Custom
+#include "Helpers.h"
 
 
 int main(int argc, char **argv)
 {
 
-        //For Saliency Map
-        typedef double InputPixelType;
-        typedef itk::Image<InputPixelType,2> SaliencyMap;
-        typedef itk::ImageRegionConstIterator<SaliencyMap> IteratorType;
-        typedef itk::ConstNeighborhoodIterator< SaliencyMap > NeighborhoodIteratorType;
+  //For Saliency Map
+  typedef double InputPixelType;
+  typedef itk::Image<InputPixelType,2> SaliencyMap;
+  typedef itk::ImageRegionConstIterator<SaliencyMap> IteratorType;
+  typedef itk::ConstNeighborhoodIterator< SaliencyMap > NeighborhoodIteratorType;
 
-        typedef unsigned char OutputPixelType;
-        typedef itk::Image<OutputPixelType,2> OutputMap;
-        typedef itk::ImageFileWriter< OutputMap >  WriterType;
-        typedef itk::ImageRegionIterator<OutputMap> OutIteratorType;
-        typedef itk::ImageRegionConstIterator< OutputMap > ConstIteratorType;
-        typedef itk::ImageRegionIterator< OutputMap > OIteratorType;
-
-
-        OutputMap::Pointer im_input;
-        im_input = readImage<OutputMap>(argv[1]);
-        OutputMap::SizeType size = im_input->GetLargestPossibleRegion().GetSize();
-        OutputMap::IndexType pixelIndex;
-        OutputMap::IndexType maxIndex;
-        OutputMap::IndexType start;
-        OutputMap::RegionType region;
-        start[0] = 0; // first index on X
-        start[1] = 0; // first index on Y
-
-        region.SetSize(size);
-    region.SetIndex( start );
-
-        double max = -1;
+  typedef unsigned char OutputPixelType;
+  typedef itk::Image<OutputPixelType,2> OutputMap;
+  typedef itk::ImageFileWriter< OutputMap >  WriterType;
+  typedef itk::ImageRegionIterator<OutputMap> OutIteratorType;
+  typedef itk::ImageRegionConstIterator< OutputMap > ConstIteratorType;
+  typedef itk::ImageRegionIterator< OutputMap > OIteratorType;
 
 
+  OutputMap::Pointer im_input;
+  im_input = Helpers::readImage<OutputMap>(argv[1]);
+  OutputMap::SizeType size = im_input->GetLargestPossibleRegion().GetSize();
+  OutputMap::IndexType pixelIndex;
+  OutputMap::IndexType maxIndex;
+  OutputMap::IndexType start;
+  OutputMap::RegionType region;
+  start[0] = 0; // first index on X
+  start[1] = 0; // first index on Y
 
-        //TVL initializations
-        vcl_vector< vnl_matrix_fixed<double, 2,2> > votee_matrices(size[0]*size[1]);
-        vcl_vector< vnl_matrix_fixed<double, 2,2> > votee_matrices_initial;
-        vnl_matrix_fixed<double,2,2> zero_matrix;
-        vcl_vector< vnl_vector_fixed<double, 2> > inlocations;
-        vcl_vector< vnl_vector_fixed<double, 2> > seeds;
-        vcl_vector< vnl_vector_fixed<double, 2> > outlocations(size[0]*size[1]);
-        vcl_vector< vnl_vector_fixed<double, 2> > outlocations_initial;
-        vnl_vector_fixed<double,2> zero_location(0.0);
-        vnl_vector_fixed<double, 2> neighbor;
-        vnl_vector_fixed<double,1> zeroloc(0.0);
-        vcl_vector< vnl_vector_fixed<double, 1> > sals;
+  region.SetSize(size);
+  region.SetIndex( start );
 
-        int ctr1;
-        ctr1=0;
+  double max = -1;
 
-        vcl_cout<<"Noting the input locations "<<vcl_endl;
+  //TVL initializations
+  vcl_vector< vnl_matrix_fixed<double, 2,2> > votee_matrices(size[0]*size[1]);
+  vcl_vector< vnl_matrix_fixed<double, 2,2> > votee_matrices_initial;
+  vnl_matrix_fixed<double,2,2> zero_matrix;
+  vcl_vector< vnl_vector_fixed<double, 2> > inlocations;
+  vcl_vector< vnl_vector_fixed<double, 2> > seeds;
+  vcl_vector< vnl_vector_fixed<double, 2> > outlocations(size[0]*size[1]);
+  vcl_vector< vnl_vector_fixed<double, 2> > outlocations_initial;
+  vnl_vector_fixed<double,2> zero_location(0.0);
+  vnl_vector_fixed<double, 2> neighbor;
+  vnl_vector_fixed<double,1> zeroloc(0.0);
+  vcl_vector< vnl_vector_fixed<double, 1> > sals;
 
-        OIteratorType inpIt(im_input,region);
+  int ctr1;
+  ctr1=0;
 
-        for(inpIt.GoToBegin();!inpIt.IsAtEnd(); ++inpIt)
-        {
-                double currpix = inpIt.Get();
-                if(currpix>0)
-                {
-                        inlocations.push_back(zero_location);
-                        pixelIndex = inpIt.GetIndex();
-                        inlocations[ctr1][0] = pixelIndex[0];
-                        inlocations[ctr1][1] = pixelIndex[1];
-                        votee_matrices_initial.push_back(zero_matrix);
-                        outlocations_initial.push_back(zero_location);
-                        outlocations_initial[ctr1][0] = pixelIndex[0];
-                        outlocations_initial[ctr1][1] = pixelIndex[1];
-                        votee_matrices_initial[ctr1][0][0] = 1;
-                        votee_matrices_initial[ctr1][0][1] = 0;
-                        votee_matrices_initial[ctr1][1][0] = 0;
-                        votee_matrices_initial[ctr1][1][1] = 1;
-                        ctr1 = ctr1+1;
-                }
+  vcl_cout<<"Noting the input locations "<<vcl_endl;
 
-        }
+  OIteratorType inpIt(im_input,region);
 
-
-        //while (! myfile.eof() )
-        //{
-        //      for(int i =0; i<2 ; i++)
-        //      {
-        //              myfile>>a[i];
-        //      }
-        //      inlocations.push_back(zero_location);
-        //      inlocations[ctr1][0] = a[0];
-        //      inlocations[ctr1][1] = a[1];
-        //      votee_matrices_initial.push_back(zero_matrix);
-        //      outlocations_initial.push_back(zero_location);
-        //      outlocations_initial[ctr1][0] = a[0];
-        //      outlocations_initial[ctr1][1] = a[1];
-
-        //      votee_matrices_initial[ctr1][0][0] = 1;
-        //      votee_matrices_initial[ctr1][0][1] = 0;
-        //      votee_matrices_initial[ctr1][1][0] = 0;
-        //      votee_matrices_initial[ctr1][1][1] = 1;
-        //      ctr1 = ctr1+1;
-        //}
-        //
-        //myfile.close();
+  for(inpIt.GoToBegin();!inpIt.IsAtEnd(); ++inpIt)
+  {
+    double currpix = inpIt.Get();
+    if(currpix>0)
+    {
+      inlocations.push_back(zero_location);
+      pixelIndex = inpIt.GetIndex();
+      inlocations[ctr1][0] = pixelIndex[0];
+      inlocations[ctr1][1] = pixelIndex[1];
+      votee_matrices_initial.push_back(zero_matrix);
+      outlocations_initial.push_back(zero_location);
+      outlocations_initial[ctr1][0] = pixelIndex[0];
+      outlocations_initial[ctr1][1] = pixelIndex[1];
+      votee_matrices_initial[ctr1][0][0] = 1;
+      votee_matrices_initial[ctr1][0][1] = 0;
+      votee_matrices_initial[ctr1][1][0] = 0;
+      votee_matrices_initial[ctr1][1][1] = 1;
+      ctr1 = ctr1+1;
+    }
+  }
 
 
-        vcl_cout<<"Finished reading the seeds file "<<vcl_endl;
+  //while (! myfile.eof() )
+  //{
+  //      for(int i =0; i<2 ; i++)
+  //      {
+  //              myfile>>a[i];
+  //      }
+  //      inlocations.push_back(zero_location);
+  //      inlocations[ctr1][0] = a[0];
+  //      inlocations[ctr1][1] = a[1];
+  //      votee_matrices_initial.push_back(zero_matrix);
+  //      outlocations_initial.push_back(zero_location);
+  //      outlocations_initial[ctr1][0] = a[0];
+  //      outlocations_initial[ctr1][1] = a[1];
 
-        long p = 0;
-
-   for(int counter1 = 0; counter1 < size[0]; counter1++)
-        {
-          for(int counter2 = 0; counter2 < size[1]; counter2++)
-                {
-                                votee_matrices[p][0][0] = 0;
-                                votee_matrices[p][0][1] = 0;
-                                votee_matrices[p][1][0] = 0;
-                                votee_matrices[p][1][1] = 0;
-                                p = p+1;
-                        }
-                }
-
-
-   //Initial Ball voting
-        vnl_matrix_fixed<double, 2,2> voter_matrix;
-        voter_matrix(0,0) = 1;
-        voter_matrix(0,1) = 0;
-        voter_matrix(1,0) = 0;
-        voter_matrix(1,1) = 1;
-        // Use "rtvl_tensor" to decompose the matrix.
-        rtvl_tensor<2> voter_tensor_initial(voter_matrix);
-        rtvl_weight_original<2> tvw(atoi(argv[2]));
+  //      votee_matrices_initial[ctr1][0][0] = 1;
+  //      votee_matrices_initial[ctr1][0][1] = 0;
+  //      votee_matrices_initial[ctr1][1][0] = 0;
+  //      votee_matrices_initial[ctr1][1][1] = 1;
+  //      ctr1 = ctr1+1;
+  //}
+  //
+  //myfile.close();
 
 
-        vcl_cout<<"Ball Voting in progress......."<<vcl_endl;
+  vcl_cout<<"Finished reading the seeds file "<<vcl_endl;
 
-        for( int counter = 0; counter< inlocations.size() ; counter++)
-        {
+  long p = 0;
 
-                vcl_cout<<counter<<vcl_endl;
-                // Use "rtvl_voter" to encapsulate a token (location + input tensor).
-                rtvl_voter<2> voter(inlocations[counter], voter_tensor_initial);
-                //Sparse Ball Voting
-                for(int vcounter = 0; vcounter< outlocations_initial.size(); vcounter++)
-                {
-                        // Use "rtvl_votee" to encapsulate a site (location + output tensor).
-                        rtvl_votee<2> votee(outlocations_initial[vcounter], votee_matrices_initial[vcounter]);
-                        // Compute one vote.
-                        rtvl_vote(voter, votee, tvw);
-                }
-
-        }
-
-                 //During dense voting if the votee happens to be an initial token,
-                 // its matrix should be an updated value.
-
-         for(int vcounter = 0; vcounter< outlocations_initial.size(); vcounter++)
-                {
-                        long ctrx = ( outlocations_initial[vcounter][0])*size[1] + (outlocations_initial[vcounter][1]) ;
-                        votee_matrices[ctrx] = votee_matrices_initial[vcounter];
-                }
-
-        vcl_cout<<"Finished Ball Voting !"<<vcl_endl;
-        vcl_cout<<"Creating Output Image and Iterators........"<<vcl_endl;
+  for(int counter1 = 0; counter1 < size[0]; counter1++)
+  {
+    for(int counter2 = 0; counter2 < size[1]; counter2++)
+    {
+      votee_matrices[p][0][0] = 0;
+      votee_matrices[p][0][1] = 0;
+      votee_matrices[p][1][0] = 0;
+      votee_matrices[p][1][1] = 0;
+      p = p+1;
+    }
+  }
 
 
-        SaliencyMap::Pointer Image = SaliencyMap::New();
-    region.SetSize(size);
-    region.SetIndex( start );
-        Image->SetRegions( region );
-        Image->Allocate();
+  //Initial Ball voting
+  vnl_matrix_fixed<double, 2,2> voter_matrix;
+  voter_matrix(0,0) = 1;
+  voter_matrix(0,1) = 0;
+  voter_matrix(1,0) = 0;
+  voter_matrix(1,1) = 1;
+  // Use "rtvl_tensor" to decompose the matrix.
+  rtvl_tensor<2> voter_tensor_initial(voter_matrix);
+  rtvl_weight_original<2> tvw(atoi(argv[2]));
 
 
-        itk::NeighborhoodIterator<SaliencyMap>::IndexType loc;
-        NeighborhoodIteratorType::RadiusType radius;
+  vcl_cout<<"Ball Voting in progress......."<<vcl_endl;
 
-        vcl_cout<<"Am here !"<<vcl_endl;
-        //radius.Fill();
-        radius[0] = (atoi(argv[3])) ;//argv [2]
-        radius[1] = (atoi(argv[3]));//argv [2]
+  for( int counter = 0; counter< inlocations.size() ; counter++)
+  {
+    vcl_cout<<counter<<vcl_endl;
+    // Use "rtvl_voter" to encapsulate a token (location + input tensor).
+    rtvl_voter<2> voter(inlocations[counter], voter_tensor_initial);
+    //Sparse Ball Voting
+    for(int vcounter = 0; vcounter< outlocations_initial.size(); vcounter++)
+    {
+      // Use "rtvl_votee" to encapsulate a site (location + output tensor).
+      rtvl_votee<2> votee(outlocations_initial[vcounter], votee_matrices_initial[vcounter]);
+      // Compute one vote.
+      rtvl_vote(voter, votee, tvw);
+    }
+  }
 
+  //During dense voting if the votee happens to be an initial token,
+  // its matrix should be an updated value.
 
-        //"N"eighborhood "It"erators.
-        itk::Neighborhood<double, 2> nhood;
-        itk::NeighborhoodIterator<SaliencyMap> NIt(radius, Image, Image->GetRequestedRegion());
-        vcl_cout<<"Finished creating Output Image  and Iterators!"<<vcl_endl;
-        vcl_cout<<"Performing Dense Voting & Creating the Saliency Map........"<<vcl_endl;
+  for(int vcounter = 0; vcounter< outlocations_initial.size(); vcounter++)
+  {
+    long ctrx = ( outlocations_initial[vcounter][0])*size[1] + (outlocations_initial[vcounter][1]) ;
+    votee_matrices[ctrx] = votee_matrices_initial[vcounter];
+  }
 
-        ctr1=0;
-        int ctr=0;
-        for( int counter = 0; counter< inlocations.size() ; counter++)
-        {
-                vcl_cout<<counter<<vcl_endl;
-
-
-                //Encode the new information into a new tensor which will be used for dense voting.
-                rtvl_tensor<2> voter_tensor(votee_matrices_initial[counter]);
-                //Remove the ballness of the tensor !
-                voter_tensor.remove_ballness(1);
-                // Use "rtvl_voter" to encapsulate a token (location + input tensor).
-                rtvl_voter<2> voter(inlocations[counter], voter_tensor);
-
-                loc[0] = inlocations[counter][0];
-                loc[1] = inlocations[counter][1];
-
-                itk::Offset<2> off_set;
-
-                NIt.SetLocation(loc);
-                nhood = NIt.GetNeighborhood();
-        for (int i = 0; i<nhood.Size(); ++i)
-                         {
-                          off_set = nhood.GetOffset(i);
-                          neighbor[0] = loc[0] + off_set[0];
-              neighbor[1] = loc[1] + off_set[1];
+  vcl_cout<<"Finished Ball Voting !"<<vcl_endl;
+  vcl_cout<<"Creating Output Image and Iterators........"<<vcl_endl;
 
 
-                          if(neighbor[0]<1) continue;
-                          if(neighbor[1]<1) continue;
+  SaliencyMap::Pointer Image = SaliencyMap::New();
+  region.SetSize(size);
+  region.SetIndex( start );
+  Image->SetRegions( region );
+  Image->Allocate();
 
 
-                          if(neighbor[0]>=size[0]) continue;
-                          if(neighbor[1]>=size[1]) continue;
+  itk::NeighborhoodIterator<SaliencyMap>::IndexType loc;
+  NeighborhoodIteratorType::RadiusType radius;
+
+  vcl_cout<<"Am here !"<<vcl_endl;
+  //radius.Fill();
+  radius[0] = (atoi(argv[3])) ;//argv [2]
+  radius[1] = (atoi(argv[3]));//argv [2]
 
 
-                          pixelIndex[0] = neighbor[0];
-                          pixelIndex[1] = neighbor[1];
+  //"N"eighborhood "It"erators.
+  itk::Neighborhood<double, 2> nhood;
+  itk::NeighborhoodIterator<SaliencyMap> NIt(radius, Image, Image->GetRequestedRegion());
+  vcl_cout<<"Finished creating Output Image  and Iterators!"<<vcl_endl;
+  vcl_cout<<"Performing Dense Voting & Creating the Saliency Map........"<<vcl_endl;
+
+  ctr1=0;
+  int ctr=0;
+  for( int counter = 0; counter< inlocations.size() ; counter++)
+  {
+    vcl_cout<<counter<<vcl_endl;
 
 
-                          ctr = ( neighbor[0])*size[1] + (neighbor[1]);
-                          rtvl_votee<2> votee(neighbor, votee_matrices[ctr]);
+    //Encode the new information into a new tensor which will be used for dense voting.
+    rtvl_tensor<2> voter_tensor(votee_matrices_initial[counter]);
+    //Remove the ballness of the tensor !
+    voter_tensor.remove_ballness(1);
+    // Use "rtvl_voter" to encapsulate a token (location + input tensor).
+    rtvl_voter<2> voter(inlocations[counter], voter_tensor);
 
-                          // Compute one vote.
-                                rtvl_vote(voter, votee, tvw);
-                                rtvl_tensor<2> votee_tensor(votee_matrices[ctr]);
-                            Image->SetPixel( pixelIndex, votee_tensor.saliency(0));
-                                if(max<votee_tensor.saliency(0))
-                                {
-                                        max =   votee_tensor.saliency(0);
-                                }
+    loc[0] = inlocations[counter][0];
+    loc[1] = inlocations[counter][1];
 
-         }
-        }
+    itk::Offset<2> off_set;
 
-                IteratorType salIt(Image,region);
+    NIt.SetLocation(loc);
+    nhood = NIt.GetNeighborhood();
+    for (int i = 0; i<nhood.Size(); ++i)
+    {
+      off_set = nhood.GetOffset(i);
+      neighbor[0] = loc[0] + off_set[0];
+      neighbor[1] = loc[1] + off_set[1];
 
-                for(inpIt.GoToBegin(),salIt.GoToBegin();!inpIt.IsAtEnd(); ++inpIt,++salIt)
-                {
-                        double currpix = salIt.Get();
-                        inpIt.Set(floor((currpix/max)*255));
-                }
 
-                writeImage<OutputMap>(im_input,argv[4]);
+      if(neighbor[0]<1) continue;
+      if(neighbor[1]<1) continue;
 
-        vcl_cout<<"Finished"<<vcl_endl;
-        return 0;
+
+      if(neighbor[0]>=size[0]) continue;
+      if(neighbor[1]>=size[1]) continue;
+
+
+      pixelIndex[0] = neighbor[0];
+      pixelIndex[1] = neighbor[1];
+
+
+      ctr = ( neighbor[0])*size[1] + (neighbor[1]);
+      rtvl_votee<2> votee(neighbor, votee_matrices[ctr]);
+
+      // Compute one vote.
+      rtvl_vote(voter, votee, tvw);
+      rtvl_tensor<2> votee_tensor(votee_matrices[ctr]);
+      Image->SetPixel( pixelIndex, votee_tensor.saliency(0));
+      if(max<votee_tensor.saliency(0))
+      {
+        max =   votee_tensor.saliency(0);
+      }
+    }
+  }
+
+  IteratorType salIt(Image,region);
+
+  for(inpIt.GoToBegin(),salIt.GoToBegin();!inpIt.IsAtEnd(); ++inpIt,++salIt)
+  {
+    double currpix = salIt.Get();
+    inpIt.Set(floor((currpix/max)*255));
+  }
+
+  Helpers::writeImage<OutputMap>(im_input,argv[4]);
+
+  vcl_cout<<"Finished"<<vcl_endl;
+  return 0;
 }
 
 
