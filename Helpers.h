@@ -11,7 +11,7 @@ namespace Helpers
 {
 
   template <typename T>
-  typename T::Pointer readImage(const char *filename)
+  typename T::Pointer readImage(const std::string& filename)
   {
     std::cout << "Reading " << filename << std::endl;
     typedef typename itk::ImageFileReader<T> ReaderType;
@@ -29,7 +29,7 @@ namespace Helpers
       std::cout << err << std::endl;
       //return EXIT_FAILURE;
     }
-    printf("Done.\n");
+    std::cout << "Done." << std::endl;
     return reader->GetOutput();
   }
 
@@ -37,9 +37,9 @@ namespace Helpers
 
 
   template <typename T>
-  int writeImage(typename T::Pointer im, const char* filename)
+  int writeImage(typename T::Pointer im, const std::string& filename)
   {
-    printf("Writing %s ... ",filename);
+    std::cout << "Writing " << filename << std::endl;
     typedef typename itk::ImageFileWriter<T> WriterType;
 
     typename WriterType::Pointer writer = WriterType::New();
@@ -55,7 +55,7 @@ namespace Helpers
       std::cout << err << std::endl;
       return EXIT_FAILURE;
     }
-    printf("Done.\n");
+    std::cout << "Done." << std::endl;
     return EXIT_SUCCESS;
   }
 

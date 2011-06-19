@@ -39,8 +39,27 @@ http://www.boost.org/LICENSE_1_0.txt) */
 #include "Helpers.h"
 
 
-int main(int argc, char **argv)
+int main(int argc, char*argv[])
 {
+  // Verify arguments
+  if(argc < 5)
+  {
+    std::cerr << "Required arguments: InputFilename VotingFieldParameter DenseVotingFieldRange OutputFileName" << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  // Parse arguments
+  std::string inputFileName = argv[1];
+
+  int votingFieldParameter = 0;
+  std::stringstream strVotingFieldParameter(argv[2]);
+  strVotingFieldParameter >> votingFieldParameter;
+
+  int denseVotingFieldRange = 0;
+  std::stringstream strDenseVotingFieldRange(argv[3]);
+  strDenseVotingFieldRange >> denseVotingFieldRange;
+
+  std::string outputFileName = argv[4];
 
   //For Saliency Map
   typedef double InputPixelType;
@@ -57,7 +76,7 @@ int main(int argc, char **argv)
 
 
   OutputMap::Pointer im_input;
-  im_input = Helpers::readImage<OutputMap>(argv[1]);
+  im_input = Helpers::readImage<OutputMap>(inputFileName);
   OutputMap::SizeType size = im_input->GetLargestPossibleRegion().GetSize();
   OutputMap::IndexType pixelIndex;
 
@@ -162,7 +181,7 @@ int main(int argc, char **argv)
   voter_matrix(1,1) = 1;
   // Use "rtvl_tensor" to decompose the matrix.
   rtvl_tensor<2> voter_tensor_initial(voter_matrix);
-  rtvl_weight_original<2> tvw(atoi(argv[2]));
+  rtvl_weight_original<2> tvw(votingFieldParameter);
 
 
   vcl_cout<<"Ball Voting in progress......."<<vcl_endl;
@@ -207,8 +226,8 @@ int main(int argc, char **argv)
 
   vcl_cout<<"Am here !"<<vcl_endl;
   //radius.Fill();
-  radius[0] = (atoi(argv[3])) ;//argv [2]
-  radius[1] = (atoi(argv[3]));//argv [2]
+  radius[0] = denseVotingFieldRange;
+  radius[1] = denseVotingFieldRange;
 
 
   //"N"eighborhood "It"erators.
@@ -279,7 +298,7 @@ int main(int argc, char **argv)
     inpIt.Set(floor((currpix/max)*255));
   }
 
-  Helpers::writeImage<OutputMap>(im_input,argv[4]);
+  Helpers::writeImage<OutputMap>(im_input, outputFileName);
 
   vcl_cout << "Finished" << vcl_endl;
 
